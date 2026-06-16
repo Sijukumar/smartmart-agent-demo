@@ -1,0 +1,244 @@
+{
+  "deployment": {
+    "name": "smart-assistant-demo",
+    "description": "SmartMart e-commerce support agent deployed on FC AgentRun DEMO platform",
+    "environment": "demo",
+    "created_by": "siju",
+    "created_at": "2026-06-16T00:00:00+08:00"
+  },
+  "platform": {
+    "name": "FC AgentRun",
+    "url": "https://agent-demo.fc.alibabacloud.com",
+    "modules_used": [
+      "agent_runtime",
+      "memory_kb",
+      "observability",
+      "evaluation",
+      "multi_agent_collaboration"
+    ]
+  },
+  "runtime": {
+    "engine": "agent_sandbox",
+    "sandbox_type": "browser_sandbox",
+    "language": "python",
+    "framework": "langchain",
+    "instances": {
+      "min_replicas": 1,
+      "max_replicas": 5,
+      "auto_scaling": {
+        "enabled": true,
+        "metric": "concurrent_sessions",
+        "target_value": 10,
+        "scale_up_cooldown_seconds": 60,
+        "scale_down_cooldown_seconds": 300
+      }
+    },
+    "resources": {
+      "cpu": "1 vCPU",
+      "memory": "512 MB",
+      "timeout_seconds": 30,
+      "max_concurrent_requests": 50
+    }
+  },
+  "ai_gateway": {
+    "enabled": true,
+    "routing": {
+      "primary_model": {
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "region": "ap-southeast-1",
+        "cost_per_1k_input_tokens": 0.00015,
+        "cost_per_1k_output_tokens": 0.0006
+      },
+      "fallback_model": {
+        "provider": "openai",
+        "model": "gpt-4o",
+        "region": "ap-southeast-1",
+        "cost_per_1k_input_tokens": 0.005,
+        "cost_per_1k_output_tokens": 0.015
+      },
+      "routing_rules": [
+        {
+          "condition": "primary_model_error_rate > 0.1",
+          "action": "route_to_fallback"
+        },
+        {
+          "condition": "primary_model_latency_p95 > 5000ms",
+          "action": "route_to_fallback"
+        }
+      ]
+    },
+    "rate_limiting": {
+      "requests_per_minute": 60,
+      "tokens_per_minute": 100000
+    },
+    "caching": {
+      "enabled": true,
+      "ttl_seconds": 3600,
+      "cache_similar_queries": true,
+      "similarity_threshold": 0.95
+    }
+  },
+  "knowledge_base_integration": {
+    "vector_db": "oss_vector_bucket",
+    "instance": "smartmart-kb-vectors",
+    "retrieval_config": {
+      "strategy": "hybrid",
+      "vector_weight": 0.7,
+      "keyword_weight": 0.3,
+      "top_k": 5,
+      "rerank_top_n": 3
+    },
+    "refresh": {
+      "auto_sync": true,
+      "sync_schedule": "0 2 * * *",
+      "on_document_update": true
+    }
+  },
+  "observability": {
+    "runtime_metrics": {
+      "enabled": true,
+      "dashboard": "AgentLabs Observatory",
+      "metrics": [
+        "request_count",
+        "latency_p50",
+        "latency_p95",
+        "latency_p99",
+        "error_rate",
+        "token_usage",
+        "tool_call_success_rate",
+        "escalation_rate"
+      ]
+    },
+    "logging": {
+      "enabled": true,
+      "log_explorer": true,
+      "log_level": "info",
+      "retention_days": 30,
+      "structured_logging": true
+    },
+    "tracing": {
+      "enabled": true,
+      "trace_all_requests": true,
+      "include_llm_calls": true,
+      "include_tool_calls": true,
+      "include_rag_retrieval": true
+    },
+    "alerts": {
+      "channels": ["web_dashboard", "email"],
+      "rules": [
+        {
+          "name": "high_error_rate",
+          "condition": "error_rate > 5% over 5 minutes",
+          "severity": "critical",
+          "action": "notify_and_scale"
+        },
+        {
+          "name": "high_latency",
+          "condition": "latency_p95 > 5000ms over 10 minutes",
+          "severity": "warning",
+          "action": "notify"
+        },
+        {
+          "name": "high_escalation_rate",
+          "condition": "escalation_rate > 25% over 1 hour",
+          "severity": "warning",
+          "action": "notify"
+        }
+      ]
+    }
+  },
+  "evaluation": {
+    "enabled": true,
+    "dashboard": "AgentLoop - Evaluate",
+    "metrics": [
+      {
+        "name": "response_accuracy",
+        "target": 0.90,
+        "evaluation_method": "llm_judge"
+      },
+      {
+        "name": "reasoning_quality",
+        "target": 0.85,
+        "evaluation_method": "llm_judge"
+      },
+      {
+        "name": "user_satisfaction",
+        "target": 0.90,
+        "evaluation_method": "post_interaction_survey"
+      },
+      {
+        "name": "hallucination_rate",
+        "target": 0.05,
+        "evaluation_method": "faithfulness_check"
+      },
+      {
+        "name": "compliance_score",
+        "target": 0.95,
+        "evaluation_method": "guardrail_audit"
+      }
+    ],
+    "test_suite": {
+      "total_test_cases": 50,
+      "categories": [
+        {"name": "product_queries", "count": 15},
+        {"name": "order_tracking", "count": 10},
+        {"name": "returns_refunds", "count": 10},
+        {"name": "shipping_questions", "count": 8},
+        {"name": "edge_cases", "count": 7}
+      ]
+    }
+  },
+  "multi_agent": {
+    "enabled": true,
+    "collaboration_mode": "hierarchical",
+    "agents": [
+      {
+        "role": "smart_assistant",
+        "type": "primary",
+        "description": "Main customer-facing agent handling all interactions"
+      },
+      {
+        "role": "order_specialist",
+        "type": "specialist",
+        "description": "Handles complex order modifications, bulk cancellations"
+      },
+      {
+        "role": "escalation_manager",
+        "type": "supervisor",
+        "description": "Manages escalations, monitors quality, intervenes when needed"
+      }
+    ]
+  },
+  "security": {
+    "authentication": {
+      "method": "jwt",
+      "token_expiry_hours": 24
+    },
+    "data_protection": {
+      "pii_masking": true,
+      "encrypt_at_rest": true,
+      "encrypt_in_transit": true,
+      "data_retention_days": 90
+    },
+    "access_control": {
+      "rbac_enabled": true,
+      "roles": ["admin", "developer", "viewer"]
+    }
+  },
+  "web_chat_widget": {
+    "enabled": true,
+    "config": {
+      "position": "bottom-right",
+      "theme": "light",
+      "primary_color": "#2563EB",
+      "welcome_message": "Hi! I'm SmartMart's Smart Assistant. How can I help you today?",
+      "placeholder_text": "Ask about products, orders, returns, shipping...",
+      "avatar_url": "/assets/smart-assistant-avatar.png",
+      "show_typing_indicator": true,
+      "show_timestamps": true,
+      "max_message_length": 2000,
+      "file_upload": false
+    }
+  }
+}
