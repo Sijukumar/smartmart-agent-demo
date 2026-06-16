@@ -1,0 +1,217 @@
+{
+  "agent": {
+    "name": "Smart Assistant",
+    "version": "1.0.0",
+    "description": "SmartMart e-commerce customer support agent with RAG-powered knowledge base",
+    "type": "conversational",
+    "channel": "web_chat",
+    "language": "en",
+    "timezone": "Asia/Singapore"
+  },
+  "model": {
+    "provider": "openai",
+    "model_id": "gpt-4o-mini",
+    "fallback_model_id": "gpt-4o",
+    "temperature": 0.3,
+    "max_tokens": 1024,
+    "top_p": 0.9,
+    "frequency_penalty": 0.1,
+    "presence_penalty": 0.1
+  },
+  "rag": {
+    "enabled": true,
+    "retrieval": {
+      "strategy": "hybrid",
+      "vector_search": {
+        "top_k": 5,
+        "similarity_threshold": 0.75,
+        "embedding_model": "text-embedding-3-small"
+      },
+      "keyword_search": {
+        "enabled": true,
+        "boost": 0.3
+      },
+      "reranker": {
+        "enabled": true,
+        "model": "bge-reranker-v2-m3",
+        "top_n": 3
+      }
+    },
+    "knowledge_bases": [
+      {
+        "id": "kb-product-catalog",
+        "name": "Product Catalog",
+        "source": "knowledge-base/product-catalog.md",
+        "chunk_strategy": "semantic",
+        "chunk_size": 512,
+        "chunk_overlap": 64,
+        "metadata": {
+          "category": "products",
+          "priority": "high"
+        }
+      },
+      {
+        "id": "kb-return-policy",
+        "name": "Return & Refund Policy",
+        "source": "knowledge-base/return-refund-policy.md",
+        "chunk_strategy": "heading",
+        "chunk_size": 1024,
+        "chunk_overlap": 128,
+        "metadata": {
+          "category": "policy",
+          "priority": "high"
+        }
+      },
+      {
+        "id": "kb-shipping-policy",
+        "name": "Shipping & Delivery Policy",
+        "source": "knowledge-base/shipping-delivery-policy.md",
+        "chunk_strategy": "heading",
+        "chunk_size": 1024,
+        "chunk_overlap": 128,
+        "metadata": {
+          "category": "policy",
+          "priority": "medium"
+        }
+      },
+      {
+        "id": "kb-payment-faq",
+        "name": "Payment & Billing FAQ",
+        "source": "knowledge-base/payment-billing-faq.md",
+        "chunk_strategy": "heading",
+        "chunk_size": 1024,
+        "chunk_overlap": 128,
+        "metadata": {
+          "category": "faq",
+          "priority": "medium"
+        }
+      },
+      {
+        "id": "kb-general-faq",
+        "name": "General FAQ",
+        "source": "knowledge-base/general-faq.md",
+        "chunk_strategy": "qa_pair",
+        "chunk_size": 512,
+        "chunk_overlap": 64,
+        "metadata": {
+          "category": "faq",
+          "priority": "medium"
+        }
+      }
+    ]
+  },
+  "tools": [
+    {
+      "name": "order_lookup",
+      "enabled": true,
+      "endpoint": "/api/v1/orders/lookup",
+      "method": "GET",
+      "auth": "service_account",
+      "timeout_ms": 5000
+    },
+    {
+      "name": "product_search",
+      "enabled": true,
+      "endpoint": "/api/v1/products/search",
+      "method": "GET",
+      "auth": "service_account",
+      "timeout_ms": 3000
+    },
+    {
+      "name": "initiate_return",
+      "enabled": true,
+      "endpoint": "/api/v1/returns/initiate",
+      "method": "POST",
+      "auth": "service_account",
+      "timeout_ms": 8000
+    },
+    {
+      "name": "track_shipment",
+      "enabled": true,
+      "endpoint": "/api/v1/shipments/track",
+      "method": "GET",
+      "auth": "service_account",
+      "timeout_ms": 5000
+    },
+    {
+      "name": "escalate_to_human",
+      "enabled": true,
+      "endpoint": "/api/v1/conversations/escalate",
+      "method": "POST",
+      "auth": "service_account",
+      "timeout_ms": 3000
+    },
+    {
+      "name": "check_promotion",
+      "enabled": true,
+      "endpoint": "/api/v1/promotions/check",
+      "method": "GET",
+      "auth": "service_account",
+      "timeout_ms": 3000
+    }
+  ],
+  "memory": {
+    "conversation_history": {
+      "enabled": true,
+      "max_turns": 20,
+      "summarize_after": 15
+    },
+    "user_context": {
+      "enabled": true,
+      "fields": ["name", "membership_tier", "recent_orders", "preferences"]
+    }
+  },
+  "guardrails": {
+    "input_validation": {
+      "max_message_length": 2000,
+      "block_pii_injection": true,
+      "block_prompt_injection": true
+    },
+    "output_validation": {
+      "block_pii_leakage": true,
+      "block_competitor_recommendations": true,
+      "max_response_length": 500,
+      "toxicity_threshold": 0.8
+    },
+    "topic_boundaries": {
+      "allowed_topics": ["products", "orders", "returns", "shipping", "payments", "account", "membership", "promotions"],
+      "blocked_topics": ["politics", "religion", "personal_advice", "medical", "legal", "competitor_products"]
+    }
+  },
+  "observability": {
+    "logging": {
+      "level": "info",
+      "include_prompts": true,
+      "include_completions": true,
+      "include_tool_calls": true
+    },
+    "metrics": {
+      "track_latency": true,
+      "track_token_usage": true,
+      "track_tool_success_rate": true,
+      "track_escalation_rate": true,
+      "track_satisfaction_score": true
+    },
+    "alerts": {
+      "error_rate_threshold": 0.05,
+      "latency_p95_threshold_ms": 5000,
+      "escalation_rate_threshold": 0.25
+    }
+  },
+  "deployment": {
+    "environment": "demo",
+    "runtime": "fc_agentrun",
+    "instances": {
+      "min": 1,
+      "max": 5,
+      "auto_scale": true,
+      "scale_metric": "concurrent_sessions",
+      "scale_threshold": 10
+    },
+    "sandbox": {
+      "type": "browser_sandbox",
+      "timeout_ms": 30000,
+      "memory_limit_mb": 512
+    }
+  }
+}
