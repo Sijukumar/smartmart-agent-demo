@@ -1,0 +1,216 @@
+{
+  "vector_database": {
+    "provider": "oss_vector_bucket",
+    "instance_name": "smartmart-kb-vectors",
+    "region": "ap-southeast-1",
+    "config": {
+      "dimensions": 1536,
+      "metric": "cosine",
+      "index_type": "HNSW",
+      "hnsw_config": {
+        "m": 16,
+        "ef_construction": 200,
+        "ef_search": 100
+      }
+    },
+    "collections": [
+      {
+        "name": "product_catalog",
+        "description": "Product information, pricing, availability, warranties, and bundles",
+        "source_document": "knowledge-base/product-catalog.md",
+        "chunking": {
+          "strategy": "semantic",
+          "chunk_size": 512,
+          "chunk_overlap": 64,
+          "separators": ["---", "##", "###", "\n\n"]
+        },
+        "metadata_fields": [
+          "category",
+          "subcategory",
+          "brand",
+          "price_range",
+          "stock_status"
+        ],
+        "estimated_chunks": 45
+      },
+      {
+        "name": "return_refund_policy",
+        "description": "Return eligibility, process steps, refund timelines, exchange rules",
+        "source_document": "knowledge-base/return-refund-policy.md",
+        "chunking": {
+          "strategy": "heading_based",
+          "chunk_size": 1024,
+          "chunk_overlap": 128,
+          "separators": ["---", "##"]
+        },
+        "metadata_fields": [
+          "section",
+          "policy_type",
+          "applicable_categories"
+        ],
+        "estimated_chunks": 18
+      },
+      {
+        "name": "shipping_delivery_policy",
+        "description": "Shipping methods, costs, delivery timelines, tracking, customs",
+        "source_document": "knowledge-base/shipping-delivery-policy.md",
+        "chunking": {
+          "strategy": "heading_based",
+          "chunk_size": 1024,
+          "chunk_overlap": 128,
+          "separators": ["---", "##"]
+        },
+        "metadata_fields": [
+          "region",
+          "shipping_method",
+          "section"
+        ],
+        "estimated_chunks": 22
+      },
+      {
+        "name": "payment_billing_faq",
+        "description": "Payment methods, wallet, BNPL, invoices, billing issues, security",
+        "source_document": "knowledge-base/payment-billing-faq.md",
+        "chunking": {
+          "strategy": "heading_based",
+          "chunk_size": 1024,
+          "chunk_overlap": 128,
+          "separators": ["---", "##"]
+        },
+        "metadata_fields": [
+          "payment_method",
+          "section",
+          "faq_topic"
+        ],
+        "estimated_chunks": 16
+      },
+      {
+        "name": "general_faq",
+        "description": "Account, orders, products, membership, privacy, technical support",
+        "source_document": "knowledge-base/general-faq.md",
+        "chunking": {
+          "strategy": "qa_pair",
+          "chunk_size": 512,
+          "chunk_overlap": 64,
+          "separators": ["**Q:", "---", "##"]
+        },
+        "metadata_fields": [
+          "topic",
+          "section"
+        ],
+        "estimated_chunks": 30
+      }
+    ],
+    "embedding": {
+      "model": "text-embedding-3-small",
+      "dimensions": 1536,
+      "batch_size": 100,
+      "normalize": true
+    },
+    "reranking": {
+      "enabled": true,
+      "model": "bge-reranker-v2-m3",
+      "top_n": 3,
+      "score_threshold": 0.5
+    }
+  },
+  "document_kb": {
+    "name": "SmartMart Knowledge Base",
+    "description": "Complete knowledge base for SmartMart e-commerce customer support agent",
+    "version": "1.0.0",
+    "documents": [
+      {
+        "id": "doc-001",
+        "title": "Product Catalog",
+        "file": "knowledge-base/product-catalog.md",
+        "format": "markdown",
+        "size_kb": 12,
+        "last_updated": "2026-06-16",
+        "tags": ["products", "pricing", "availability", "electronics", "fashion", "home", "sports", "books"],
+        "priority": "high",
+        "refresh_frequency": "weekly"
+      },
+      {
+        "id": "doc-002",
+        "title": "Return & Refund Policy",
+        "file": "knowledge-base/return-refund-policy.md",
+        "format": "markdown",
+        "size_kb": 8,
+        "last_updated": "2026-06-16",
+        "tags": ["returns", "refunds", "exchanges", "warranty", "policy"],
+        "priority": "high",
+        "refresh_frequency": "monthly"
+      },
+      {
+        "id": "doc-003",
+        "title": "Shipping & Delivery Policy",
+        "file": "knowledge-base/shipping-delivery-policy.md",
+        "format": "markdown",
+        "size_kb": 9,
+        "last_updated": "2026-06-16",
+        "tags": ["shipping", "delivery", "tracking", "customs", "international"],
+        "priority": "medium",
+        "refresh_frequency": "monthly"
+      },
+      {
+        "id": "doc-004",
+        "title": "Payment & Billing FAQ",
+        "file": "knowledge-base/payment-billing-faq.md",
+        "format": "markdown",
+        "size_kb": 7,
+        "last_updated": "2026-06-16",
+        "tags": ["payment", "billing", "wallet", "bnpl", "invoices", "promotions"],
+        "priority": "medium",
+        "refresh_frequency": "monthly"
+      },
+      {
+        "id": "doc-005",
+        "title": "General FAQ",
+        "file": "knowledge-base/general-faq.md",
+        "format": "markdown",
+        "size_kb": 6,
+        "last_updated": "2026-06-16",
+        "tags": ["account", "membership", "privacy", "technical", "support"],
+        "priority": "medium",
+        "refresh_frequency": "quarterly"
+      }
+    ],
+    "ingestion_pipeline": {
+      "steps": [
+        {
+          "step": 1,
+          "name": "document_parsing",
+          "description": "Parse markdown documents, extract headings, tables, and Q&A pairs"
+        },
+        {
+          "step": 2,
+          "name": "chunking",
+          "description": "Split documents into chunks based on per-collection chunking strategy"
+        },
+        {
+          "step": 3,
+          "name": "metadata_extraction",
+          "description": "Extract and assign metadata fields (category, topic, section) per chunk"
+        },
+        {
+          "step": 4,
+          "name": "embedding_generation",
+          "description": "Generate vector embeddings using text-embedding-3-small (1536 dimensions)"
+        },
+        {
+          "step": 5,
+          "name": "indexing",
+          "description": "Store vectors + metadata in HNSW index within OSS Vector Bucket"
+        },
+        {
+          "step": 6,
+          "name": "validation",
+          "description": "Run test queries to verify retrieval quality (precision@3 ≥ 0.85)"
+        }
+      ],
+      "total_estimated_chunks": 131,
+      "total_estimated_vectors": 131,
+      "storage_estimate_mb": 2.5
+    }
+  }
+}
